@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 6 Card Check</title>
+<script>window.CARDCHECK_API = 'https://script.google.com/macros/s/AKfycbyTHq15PsC9wDEr-5msr0DHbMZ74IvxDj48sNnmVVbJ8cxlluGk6N7HV2MpKV-57Alb/exec';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: a labelling desk. Left, the zoomed card and the answer pad; right, the whole table for context. */
+:root {
+  --bg: #eaf0ef; --panel: #ffffff; --ink: #13201f; --muted: #5b6d6a; --line: #d2dddb;
+  --felt: #0d8a85; --felt-ink: #ffffff; --red: #c3313c; --blk: #172221; --hl: #f2a100; --ok: #23865a; --warn: #b4561a;
+  --chip: #f3f7f6;
+  --f-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1514; --panel: #15201f; --ink: #e5eeec; --muted: #8ea29f; --line: #26352f;
+  --felt: #2fb2ab; --felt-ink: #06201e; --red: #f0646c; --blk: #e3ecea; --hl: #ffc240; --ok: #4cc48a; --warn: #f09a5c;
+  --chip: #1b2827; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1514; --panel: #15201f; --ink: #e5eeec; --muted: #8ea29f; --line: #26352f;
+  --felt: #2fb2ab; --felt-ink: #06201e; --red: #f0646c; --blk: #e3ecea; --hl: #ffc240; --ok: #4cc48a; --warn: #f09a5c;
+  --chip: #1b2827; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 16px }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px }
+header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px }
+h1 { font-family: var(--f-head); font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em }
+h1 span { color: var(--felt) }
+.prog { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0 }
+.bar { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; min-width: 80px }
+.bar i { display: block; height: 100%; background: var(--felt); width: 0; transition: width .25s }
+.prog b { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap }
+.filters { display: flex; gap: 8px; flex-wrap: wrap }
+select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px }
+.work { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 12px; align-items: start }
+@media (max-width: 940px) { .work { grid-template-columns: minmax(0, 1fr) } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.ask { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px }
+.ask .who { font-family: var(--f-head); font-size: 22px; font-weight: 700 }
+.ask .slot { font-family: var(--f-head); font-size: 18px; color: var(--felt); font-weight: 500 }
+.ask .where { color: var(--muted); font-size: 13px; margin-left: auto; font-variant-numeric: tabular-nums }
+.tag { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: var(--chip); color: var(--muted); border: 1px solid var(--line) }
+.tag.sd { color: var(--felt); border-color: var(--felt) }
+.canvasbox { background: #0b1110; border-radius: 8px; overflow: hidden; display: flex; justify-content: center }
+#side .canvasbox { display: none }
+canvas { display: block; max-width: 100% }
+.guess { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--muted) }
+.guess strong { color: var(--ink); font-weight: 600 }
+.guess .mine { color: var(--ok); font-weight: 600 }
+kbd { font-family: var(--f-mono); font-size: 11px; padding: 1px 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--chip); color: var(--ink) }
+.pad { display: flex; flex-direction: column; gap: 8px }
+.row { display: grid; gap: 6px }
+.ranks { grid-template-columns: repeat(13, minmax(0, 1fr)) }
+@media (max-width: 620px) { .ranks { grid-template-columns: repeat(7, minmax(0, 1fr)) } }
+.suits { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+.extra { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+@media (max-width: 620px) { .extra { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.nav { grid-template-columns: 1fr 1fr }
+button { font: inherit; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 9px 4px; cursor: pointer; min-width: 0 }
+button:hover { border-color: var(--felt) }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px }
+button.rank { font-family: var(--f-head); font-weight: 700; font-size: 17px; padding: 8px 0 }
+button.suit { font-size: 24px; line-height: 1; padding: 7px 0 }
+button.suit.r { color: var(--red) } button.suit.b { color: var(--blk) }
+button.on { background: var(--felt); color: var(--felt-ink); border-color: var(--felt) }
+button.suit.on { color: var(--felt-ink) }
+button small { display: block; font-size: 10px; color: var(--muted); font-family: var(--f-mono); margin-top: 2px }
+button.on small { color: inherit; opacity: .8 }
+.why { background: var(--chip); border: 1px solid var(--hl); border-left-width: 4px; border-radius: 8px; padding: 8px 10px; font-size: 13.5px }
+.why b { font-weight: 600 }
+.status { font-size: 12.5px; color: var(--muted); min-height: 1.4em }
+.status.err { color: var(--warn) }
+.status.ok { color: var(--ok) }
+dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px }
+dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding-top: 1px }
+dd { margin: 0; min-width: 0 }
+details { border-top: 1px solid var(--line); padding-top: 8px }
+details.flat { border-top: 0; padding-top: 0 }
+.h { font-weight: 600 }
+summary { cursor: pointer; font-weight: 600 }
+.sheet { background: #f4f7f6; border-radius: 6px; padding: 4px }
+.sheet img { display: block; width: 100%; height: auto; cursor: pointer }
+.big { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; background: #f4f7f6; border-radius: 6px; padding: 10px }
+.big button { padding: 10px 12px; font-size: 16px } #bigX { position: absolute; top: 6px; right: 6px; padding: 4px 9px }
+.bigcard { text-align: center } .bigcard canvas { display: block; width: 192px; height: 256px; image-rendering: auto; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.25) }
+#bigname { margin-top: 6px; font-family: var(--f-head); font-weight: 700; font-size: 18px; color: #13201f }
+.keys { margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; font-size: 13px }
+.tables { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px }
+.tables .bar { height: 6px }
+.who { display: flex; gap: 8px; align-items: center; margin: 0 } .who label { font-size: 13px; opacity: .8 } .who input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: inherit; font: inherit }
+.board { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 5px 10px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px } .board .me { font-weight: 600 } .board .bar { height: 6px; background: var(--line); border-radius: 3px } .board .bar i { display: block; height: 100%; background: var(--ok); border-radius: 3px }
+.done { text-align: center; padding: 30px 10px; font-family: var(--f-head); font-size: 18px }
+textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size: 11px; background: var(--chip); color: var(--ink); border: 1px solid var(--line); border-radius: 6px }
+.empty { color: var(--muted); padding: 24px 6px; text-align: center }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none } }
+/* phones: keep the card and the whole answer pad on one screen */
+@media (max-width: 620px) {
+  body { padding-block: 8px 20px } .wrap { gap: 8px } h1 { font-size: 17px } header.top { gap: 6px 12px }
+  select { padding: 4px 6px; font-size: 13px }
+  .panel { padding: 10px; gap: 8px } .ask .who { font-size: 18px } .ask .slot { font-size: 15px } .ask .where { font-size: 12px }
+  #stage .canvasbox canvas { max-height: 30vh; width: auto; max-width: 100% }
+  #acc { display: none } .guess { font-size: 13px }
+  button { padding: 7px 3px } button.rank { font-size: 15px; padding: 6px 0 } button.suit { font-size: 20px; padding: 5px 0 } button small { display: none }
+  .ranks { grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px }
+  .extra { grid-template-columns: repeat(4, minmax(0, 1fr)); font-size: 12px }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Week 6 <span>Card Check</span></h1>
+    <div class="prog"><div class="bar"><i id="pbar"></i></div><b id="ptext">Loading cards…</b></div>
+    <div class="filters">
+      <select id="mode" aria-label="Which cards">
+        <option value="sdfirst">Showdowns and boards first</option>
+        <option value="sd">Showdowns and boards only</option>
+        <option value="all">Every card, hand by hand</option>
+      </select>
+      <select id="table" aria-label="Table"><option value="all">All tables</option></select>
+      <select id="sort" aria-label="Order">
+        <option value="latest">Latest hands first (clearest)</option>
+        <option value="hand">Hand order</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="work">
+    <section class="panel" id="stage">
+      <div class="ask">
+        <span class="who" id="who">—</span><span class="slot" id="slot"></span>
+        <span class="tag" id="sdtag" hidden>Showdown</span>
+        <span class="where" id="where"></span>
+      </div>
+      <div class="why" id="why" hidden></div>
+      <div class="canvasbox"><canvas id="zoom" width="640" height="300" aria-label="Zoomed card"></canvas></div>
+      <div class="guess">
+        <span>My guess: <strong id="guess">—</strong></span>
+        <span id="acc"><kbd>Enter</kbd> accepts it</span>
+        <span class="mine" id="mine"></span>
+      </div>
+      <div class="pad">
+        <div class="row ranks" id="ranks"></div>
+        <div class="row suits" id="suits"></div>
+        <div class="row extra">
+          <button id="face" type="button">Face card, J/Q/K unclear<small>F</small></button>
+          <button id="colR" type="button">Red, suit unclear<small>R</small></button>
+          <button id="colB" type="button">Black, suit unclear<small>B</small></button>
+          <button id="cant" type="button">Can't tell<small>X</small></button>
+        </div>
+        <div class="row nav">
+          <button id="back" type="button">← Previous card<small>Backspace</small></button>
+          <button id="skip" type="button">Skip for now →<small>→</small></button>
+        </div>
+      </div>
+      <div class="status" id="status">Connecting to saved labels…</div>
+    </section>
+
+    <aside class="panel" id="side">
+      <div class="canvasbox"><canvas id="ctx" width="480" height="400" aria-label="Whole table"></canvas></div>
+      <dl>
+        <dt>Hand</dt><dd id="chead">—</dd>
+        <dt>Board</dt><dd id="cboard">—</dd>
+        <dt>Result</dt><dd id="cres">—</dd>
+      </dl>
+      <div class="h">Card designs</div>
+      <div class="sheet"><img id="sheet" src="cards.png" alt="All 52 card designs used by the game; click one to see it larger"></div>
+      <div class="big" id="big" hidden>
+        <button id="bigPrev" type="button" aria-label="Previous design">◀</button>
+        <div class="bigcard"><canvas id="bigc" width="192" height="256"></canvas><div id="bigname"></div></div>
+        <button id="bigNext" type="button" aria-label="Next design">▶</button>
+        <button id="bigX" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="who"><label for="name">Your name</label><input id="name" type="text" maxlength="24" placeholder="so your labels count on the board" autocomplete="off"></div>
+      <div class="h">Leaderboard</div>
+      <div class="board" id="board"></div>
+      <details>
+        <summary>Keyboard</summary>
+        <div class="keys">
+          <span><kbd>A</kbd> <kbd>K</kbd> <kbd>Q</kbd> <kbd>J</kbd> <kbd>T</kbd> <kbd>2</kbd>–<kbd>9</kbd></span><span>Rank (<kbd>T</kbd> or <kbd>0</kbd> is 10)</span>
+          <span><kbd>S</kbd> <kbd>H</kbd> <kbd>D</kbd> <kbd>C</kbd></span><span>Suit. Rank and suit in either order; the card saves when both are in</span>
+          <span><kbd>F</kbd></span><span>Face card when you can't tell J, Q or K; then the suit, or <kbd>R</kbd> / <kbd>B</kbd></span>
+          <span><kbd>R</kbd> <kbd>B</kbd></span><span>Red or black, suit unclear (after the rank)</span>
+          <span><kbd>X</kbd></span><span>Can't tell. After a rank, it saves just the rank with the suit unknown (e.g. <kbd>4</kbd> <kbd>X</kbd> = a 4, suit unclear)</span>
+          <span><kbd>Enter</kbd></span><span>Accept my guess</span>
+          <span><kbd>Backspace</kbd> <kbd>←</kbd></span><span>Previous card</span>
+          <span><kbd>→</kbd></span><span>Skip for now</span>
+          <span><kbd>Esc</kbd></span><span>Clear what you've typed</span>
+        </div>
+      </details>
+      <details>
+        <summary>Progress by table</summary>
+        <div class="tables" id="tables" style="margin-top:8px"></div>
+      </details>
+      <details>
+        <summary>Send my labels</summary>
+        <p style="margin:8px 0">Labels save by themselves. If the shared list can't be reached, press the button and paste the code to Luca.</p>
+        <button id="copy" type="button" style="padding:8px 12px">Copy my labels code</button>
+        <textarea id="dump" hidden readonly></textarea>
+      </details>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+(() => {
+  const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+  const SUITS = [['s', '♠', 'b'], ['h', '♥', 'r'], ['d', '♦', 'r'], ['c', '♣', 'b']];
+  const SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
+  const S = { recheck: {}, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', sent: {}, sentOnce: false };
+  const $ = id => document.getElementById(id);
+
+  // ---------- answer pad ----------
+  RANKS.forEach(r => { const b = document.createElement('button'); b.type = 'button'; b.className = 'rank'; b.dataset.r = r; b.textContent = r === 'T' ? '10' : r; b.onclick = () => pickRank(r); $('ranks').appendChild(b); });
+  SUITS.forEach(([k, sym, col]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'suit ' + col; b.dataset.s = k; b.innerHTML = sym + '<small>' + k.toUpperCase() + '</small>'; b.onclick = () => pickSuit(k); $('suits').appendChild(b); });
+  $('face').onclick = () => pickRank('P');
+  $('colR').onclick = () => pickSuit('r'); $('colB').onclick = () => pickSuit('b');
+  $('cant').onclick = () => cantTell(); $('back').onclick = () => go(-1); $('skip').onclick = () => go(1);
+
+  function cantTell() { if (S.rank) save(S.rank + 'x'); else save('?'); }
+  function pickRank(r) { S.rank = r; padState(); if (S.suit) save(S.rank + S.suit); else if (r === 'P') status('Face card: now pick the suit, or R / B for red or black.', ''); }
+  function pickSuit(s) {
+    if ((s === 'r' || s === 'b') && !S.rank) { status('Pick the rank first, then red or black.', 'err'); return; }
+    S.suit = s; padState(); if (S.rank) save(S.rank + S.suit);
+  }
+  function padState() {
+    document.querySelectorAll('button.rank').forEach(b => b.classList.toggle('on', b.dataset.r === S.rank));
+    $('face').classList.toggle('on', S.rank === 'P');
+    document.querySelectorAll('button.suit').forEach(b => b.classList.toggle('on', b.dataset.s === S.suit));
+    $('cant').firstChild.textContent = S.rank ? (S.rank === 'P' ? 'Face card, colour unclear' : 'Suit unclear (keep the rank)') : "Can't tell";
+    $('colR').classList.toggle('on', S.suit === 'r'); $('colB').classList.toggle('on', S.suit === 'b');
+  }
+
+  // ---------- labels ----------
+  const docOf = it => 'T' + it.t + '-H' + it.h;
+  const fieldOf = it => it.id.slice(docOf(it).length + 1);
+  function pretty(v) {
+    if (!v) return '';
+    if (v === '?') return "can't tell";
+    const r = v[0] === 'T' ? '10' : (v[0] === 'P' ? 'face card' : v[0]), s = v[1];
+    if (s === 'r') return 'red ' + r; if (s === 'b') return 'black ' + r; if (s === 'x') return r + ', suit unknown';
+    return r + (v[0] === 'P' ? ' ' : '') + (SYM[s] || '');
+  }
+  function guessValue(g) {
+    g = (g || '').replace(/\s*\(\?\)/g, '');
+    let m = g.match(/^(A|K|Q|J|10|[2-9])([♠♥♦♣])/);
+    if (m) return (m[1] === '10' ? 'T' : m[1]) + ({ '♠': 's', '♥': 'h', '♦': 'd', '♣': 'c' })[m[2]];
+    m = g.match(/^(red|black) picture card$/);
+    if (m) return 'P' + (m[1] === 'red' ? 'r' : 'b');
+    m = g.match(/^(red|black) (Ace|A|K|Q|J|10|[2-9])$/);
+    if (m) { const r = m[2] === 'Ace' ? 'A' : (m[2] === '10' ? 'T' : m[2]); return r + (m[1] === 'red' ? 'r' : 'b'); }
+    return null;
+  }
+  function save(v) {
+    const it = cur(); if (!it) return;
+    S.labels[it.id] = v; S.labelAt[it.id] = Date.now(); S.mine[it.id] = true; S.by[it.id] = S.name || 'you'; S.rank = null; S.suit = null; padState(); keepMine(); board();
+    persist(docOf(it));
+    status((S.connected ? 'Saved ' : 'Kept on this page: ') + it.who + ' ' + it.slot + ' = ' + pretty(v) + (S.name ? '' : '. Add your name in the box on the right so these count on the leaderboard.'), S.connected ? 'ok' : 'err');
+    if (!S.name && !S.nudged) { S.nudged = true; const nb = $('name'); nb.style.outline = '2px solid var(--hl)'; setTimeout(() => { nb.style.outline = ''; }, 4000); }
+    advance();
+  }
+  function handBody(doc) {
+    const body = {};
+    for (const it of S.byDoc[doc] || []) { const v = S.labels[it.id]; if (v !== undefined && S.mine[it.id]) body[fieldOf(it)] = { v, at: S.labelAt[it.id] || Date.now(), by: S.uid || '', name: S.name || '' }; }
+    return body;
+  }
+  // ---------- saving to the Google script (API) ----------
+  const API = window.CARDCHECK_API || '';
+  const outbox = {};  // id -> value, waiting to be sent
+  let sending = false;
+  async function flush() {
+    if (sending || !API) return; const ids = Object.keys(outbox); if (!ids.length) return;
+    const labels = {}; for (const id of ids) labels[id] = outbox[id]; sending = true;
+    try {
+      const r = await fetch(API, { method: 'POST', body: JSON.stringify({ name: S.name || '', labels }) });
+      const j = await r.json(); if (!j.ok) throw new Error(j.error || 'refused');
+      for (const id of ids) if (outbox[id] === labels[id]) { delete outbox[id]; S.sent[id] = labels[id]; } keepMine();
+      S.connected = true; if (!S.sentOnce) { S.sentOnce = true; status('Saved. Labels go straight to the shared list.', 'ok'); }
+    } catch (e) { S.connected = false; status('Could not reach the shared list (' + (e.message || 'error') + '); will retry. Your labels are kept in this browser.', 'err'); setTimeout(flush, 5000); }
+    finally { sending = false; if (Object.keys(outbox).length) setTimeout(flush, 300); }
+  }
+  function persist(doc) {
+    for (const it of S.byDoc[doc] || []) if (S.mine[it.id] && S.labels[it.id] !== undefined && S.sent[it.id] !== S.labels[it.id]) outbox[it.id] = S.labels[it.id];
+    flush();
+  }
+  const isOpen = it => $('mode').value === 'recheck' ? !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt)) : S.labels[it.id] === undefined;
+  function rebuild(keepId) {
+    const mode = $('mode').value, tb = $('table').value;
+    let list = S.items.filter(it => tb === 'all' || String(it.t) === tb);
+    if (mode === 'sd') list = list.filter(it => it.sd);
+    if (mode === 'recheck') { const order = Object.keys(S.recheck); const pos = new Map(order.map((k, i) => [k, i])); list = list.filter(it => pos.has(it.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id)); S.order = list; const k = keepId ? list.findIndex(it => it.id === keepId) : -1; S.pos = k >= 0 ? k : firstOpen(0); show(); return; }
+    const idx = new Map(S.items.map((it, i) => [it.id, i]));
+    const latest = $('sort').value === 'latest';
+    list.sort((a, b) => (mode === 'sdfirst' ? (b.sd - a.sd) : 0) || (latest ? (b.h - a.h) : (a.h - b.h)) || (a.t - b.t) || (idx.get(a.id) - idx.get(b.id)));
+    S.order = list;
+    const k = keepId ? list.findIndex(it => it.id === keepId) : -1;
+    S.pos = k >= 0 ? k : firstOpen(0);
+    show();
+  }
+  function firstOpen(from) {
+    for (let i = from; i < S.order.length; i++) if (isOpen(S.order[i])) return i;
+    for (let i = 0; i < from; i++) if (isOpen(S.order[i])) return i;
+    return S.order.length;
+  }
+  const cur = () => S.order[S.pos];
+  function advance() { S.pos = firstOpen(Math.min(S.pos + 1, S.order.length)); show(); }
+  function go(d) { S.rank = null; S.suit = null; padState(); S.pos = Math.max(0, Math.min(S.order.length - 1, S.pos + d)); show(); }
+
+  // ---------- drawing ----------
+  function img(src) {
+    if (!S.imgs[src]) { const im = new Image(); im.decoding = 'async'; im.onerror = () => { if (!im.dataset.plain) { im.dataset.plain = '1'; im.src = 'img/' + src; } }; im.src = 'img/' + src + '?r=fix1'; im.onload = () => { if (cur() && cur().img === src) draw(); }; S.imgs[src] = im; }
+    return S.imgs[src];
+  }
+  function fit(canvas, w, h) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    const g = canvas.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; return g;
+  }
+  function draw() {
+    const it = cur(); if (!it) return;
+    const im = img(it.img); if (!im.complete || !im.naturalWidth) return;
+    const css = getComputedStyle(document.documentElement), hl = css.getPropertyValue('--hl').trim() || '#f2a100';
+    // zoom region
+    let [x0, y0, x1, y1] = it.zoom; const [bx0, by0, bx1, by1] = it.box;
+    if (it.who === 'Board') { const w = bx1 - bx0, h = by1 - by0; x0 = Math.max(it.zoom[0], bx0 - 1.15 * w); x1 = Math.min(it.zoom[2], bx1 + 1.15 * w); y0 = by0 - 0.12 * h; y1 = by1 + 0.12 * h; }
+    else { const w = x1 - x0, h = y1 - y0; x0 -= 0.14 * w; x1 += 0.14 * w; y0 -= 0.10 * h; y1 += 0.10 * h; }
+    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(im.naturalWidth, x1); y1 = Math.min(im.naturalHeight, y1);
+    const boxW = $('zoom').parentElement.clientWidth;
+    let W = Math.min(boxW, 760), H = W * (y1 - y0) / (x1 - x0);
+    const maxH = Math.max(220, window.innerHeight * 0.44); if (H > maxH) { H = maxH; W = H * (x1 - x0) / (y1 - y0); }
+    const g = fit($('zoom'), W, H), sx = W / (x1 - x0), sy = H / (y1 - y0);
+    g.drawImage(im, x0, y0, x1 - x0, y1 - y0, 0, 0, W, H);
+    const rx = (bx0 - x0) * sx, ry = (by0 - y0) * sy, rw = (bx1 - bx0) * sx, rh = (by1 - by0) * sy;
+    g.save(); g.fillStyle = 'rgba(5,12,11,0.42)'; g.beginPath(); g.rect(0, 0, W, H); g.rect(rx, ry, rw, rh); g.fill('evenodd'); g.restore();
+    g.lineWidth = 3; g.strokeStyle = hl; g.strokeRect(rx - 2, ry - 2, rw + 4, rh + 4);
+    // context
+    const cw = $('ctx').parentElement.clientWidth, ch = cw * im.naturalHeight / im.naturalWidth;
+    const c = fit($('ctx'), cw, ch), k = cw / im.naturalWidth;
+    c.drawImage(im, 0, 0, cw, ch);
+    c.lineWidth = 2.5; c.strokeStyle = hl; c.strokeRect(bx0 * k - 3, by0 * k - 3, (bx1 - bx0) * k + 6, (by1 - by0) * k + 6);
+  }
+
+  // ---------- view ----------
+  function show() {
+    const it = cur();
+    progress();
+    if (!it) {
+      $('who').textContent = S.order.length ? 'All done here' : 'Nothing to label'; $('slot').textContent = ''; $('where').textContent = '';
+      $('guess').textContent = '—'; $('mine').textContent = ''; $('sdtag').hidden = true; $('why').hidden = true; $('acc').hidden = true;
+      fit($('zoom'), 10, 10); return;
+    }
+    $('who').textContent = it.who === 'Board' ? 'Board' : it.who;
+    $('slot').textContent = it.slot;
+    $('where').textContent = 'Table ' + it.t + ' · Hand ' + it.h + ' · ' + it.time;
+    $('sdtag').hidden = !it.sd; $('sdtag').textContent = it.who === 'Board' ? 'Board card' : 'Showdown'; $('sdtag').className = 'tag sd';
+    const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = gtxt || '—';
+    const why = S.recheck[it.id], lab = S.labels[it.id];
+    $('why').hidden = !why; if (why) { $('why').innerHTML = ''; const b = document.createElement('b'); b.textContent = 'Why this card is flagged: '; $('why').append(b, document.createTextNode(why)); }
+    const keep = $('mode').value === 'recheck' && lab && lab !== '?';
+    $('acc').innerHTML = keep ? '<kbd>Enter</kbd> keeps your label' : '<kbd>Enter</kbd> accepts it';
+    $('acc').hidden = !(keep || guessValue(it.guess));
+    const v = S.labels[it.id]; $('mine').textContent = v !== undefined ? 'Your label: ' + pretty(v) : '';
+    $('chead').textContent = it.ctx.head || '—'; $('cboard').textContent = it.ctx.board || 'No board (hand ended before the flop)';
+    $('cres').textContent = (it.ctx.result || []).join(' · ') || '—';
+    draw();
+    for (let i = 1; i <= 6; i++) { const n = S.order[S.pos + i]; if (n) img(n.img); }
+  }
+  function board() {
+    const c = {}; for (const [id, v] of Object.entries(S.labels)) { if (v === undefined || v === '?') continue; const n = S.mine[id] ? (S.name || 'you') : (S.by[id] || 'Luca'); c[n] = (c[n] || 0) + 1; }
+    const rows = Object.entries(c).sort((a, b) => b[1] - a[1]); const top = rows.length ? rows[0][1] : 1; const box = $('board'); box.textContent = '';
+    rows.forEach(([n, k], i) => {
+      const me = n === (S.name || 'you') && Object.keys(S.mine).length;
+      const a = document.createElement('span'); a.textContent = (i + 1) + '. ' + n; if (me) a.className = 'me';
+      const b = document.createElement('span'); b.className = 'bar'; const f = document.createElement('i'); f.style.width = (100 * k / top) + '%'; b.appendChild(f);
+      const d = document.createElement('span'); d.textContent = k; if (me) d.className = 'me';
+      box.append(a, b, d);
+    });
+    if (!rows.length) box.textContent = 'No labels yet';
+  }
+  $('name').oninput = () => { S.name = $('name').value.trim().slice(0, 24); try { localStorage.setItem('cardcheck-name', S.name); } catch (e) { } board(); };
+  function progress() {
+    board();
+    const n = S.order.length, done = S.order.filter(it => !isOpen(it)).length;
+    $('pbar').style.width = (n ? 100 * done / n : 0) + '%';
+    $('ptext').textContent = n ? done + ' of ' + n + ($('mode').value === 'recheck' ? ' re-checked' : ' labelled') : 'No cards in this view';
+    const box = $('tables'); box.textContent = '';
+    const tabs = [...new Set(S.items.map(it => it.t))].sort((a, b) => a - b);
+    for (const t of tabs) {
+      const all = S.items.filter(it => it.t === t), d = all.filter(it => S.labels[it.id] !== undefined).length;
+      const a = document.createElement('span'); a.textContent = 'Table ' + t;
+      const b = document.createElement('div'); b.className = 'bar'; const i = document.createElement('i'); i.style.width = (100 * d / all.length) + '%'; b.appendChild(i);
+      const c = document.createElement('span'); c.textContent = d + ' / ' + all.length;
+      box.append(a, b, c);
+    }
+  }
+  function status(msg, cls) { const s = $('status'); s.textContent = msg; s.className = 'status' + (cls ? ' ' + cls : ''); }
+
+  // ---------- keyboard ----------
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('select, textarea, input')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    const up = k.length === 1 ? k.toUpperCase() : k;
+    if ('AKQJ'.includes(up) && k.length === 1) { pickRank(up); e.preventDefault(); return; }
+    if (up === 'T' || k === '0') { pickRank('T'); e.preventDefault(); return; }
+    if (/^[2-9]$/.test(k)) { pickRank(k); e.preventDefault(); return; }
+    if ('SHDC'.includes(up) && k.length === 1) { pickSuit(up.toLowerCase()); e.preventDefault(); return; }
+    if (up === 'R' || up === 'B') { pickSuit(up.toLowerCase()); e.preventDefault(); return; }
+    if (up === 'F') { pickRank('P'); e.preventDefault(); return; }
+    if (up === 'X') { cantTell(); e.preventDefault(); return; }
+    if (k === 'Enter' && $('mode').value === 'recheck' && cur() && S.labels[cur().id] && S.labels[cur().id] !== '?') { save(S.labels[cur().id]); e.preventDefault(); return; }
+    if (k === 'Enter') { const g = cur() && guessValue(cur().guess); if (g) save(g); else status('My guess has no rank to accept. Pick the card instead.', 'err'); e.preventDefault(); return; }
+    if (k === 'Backspace' || k === 'ArrowLeft') { go(-1); e.preventDefault(); return; }
+    if (k === 'ArrowRight') { go(1); e.preventDefault(); return; }
+    if (k === 'Escape') { S.rank = null; S.suit = null; padState(); }
+  });
+  $('mode').onchange = () => rebuild(cur() && cur().id);
+  $('sort').onchange = () => rebuild(null);
+  // ---------- card design viewer: the sheet is a 15 x 5 grid of 48 x 64 cells; rows are hearts, diamonds, spades, clubs ----------
+  const CW = 48, CHh = 64, BR = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'], BS = ['♥', '♦', '♠', '♣'];
+  let bigI = 0;  // 0..51, row-major over the four suit rows
+  function showBig(i) {
+    bigI = (i + 52) % 52; const r = Math.floor(bigI / 13), c = bigI % 13;
+    const cv = $('bigc'), g = cv.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.clearRect(0, 0, cv.width, cv.height);
+    g.drawImage($('sheet'), c * CW, r * CHh, CW, CHh, 0, 0, cv.width, cv.height);
+    $('bigname').textContent = BR[c] + BS[r]; $('bigname').style.color = r < 2 ? 'var(--red)' : '#13201f';
+    $('big').hidden = false; $('sheet').parentElement.hidden = true;
+  }
+  $('sheet').onclick = e => {
+    const rc = $('sheet').getBoundingClientRect(), k = $('sheet').naturalWidth / rc.width;
+    const c = Math.floor((e.clientX - rc.left) * k / CW), r = Math.floor((e.clientY - rc.top) * k / CHh);
+    if (r >= 0 && r < 4 && c >= 0 && c < 13) showBig(r * 13 + c);
+  };
+  $('bigPrev').onclick = () => showBig(bigI - 1); $('bigNext').onclick = () => showBig(bigI + 1);
+  $('bigX').onclick = () => { $('big').hidden = true; $('sheet').parentElement.hidden = false; };
+  $('table').onchange = () => rebuild(null);
+  window.addEventListener('resize', () => draw());
+
+  // ---------- copy ----------
+  function keepMine() { try { const out = {}; for (const k of Object.keys(S.mine)) if (S.labels[k] !== undefined) out[k] = S.labels[k]; localStorage.setItem('cardcheck-mine', JSON.stringify(out)); localStorage.setItem('cardcheck-sent', JSON.stringify(S.sent)); } catch (e) { } }
+  $('copy').onclick = () => {
+    const out = {}; for (const k of Object.keys(S.mine)) if (S.labels[k] !== undefined) out[k] = S.labels[k];
+    const txt = 'CARDS2 ' + btoa(unescape(encodeURIComponent(JSON.stringify({ name: S.name || '', labels: out }))));
+    const ta = $('dump'); ta.value = txt; ta.hidden = false;
+    const done = () => status('Copied a code with ' + Object.keys(out).length + ' of your labels. Paste it to Luca.', 'ok');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, () => { ta.select(); status('Select the text in the box and copy it.', ''); });
+    else { ta.select(); status('Select the text in the box and copy it.', ''); }
+  };
+
+  // ---------- data ----------
+  async function loadItems() {
+    try {
+      const tables = await (await fetch('tables.json')).json();
+      for (const t of tables) {
+        const arr = await (await fetch(t.file)).json();
+        S.items.push(...arr);
+        const o = document.createElement('option'); o.value = String(t.t); o.textContent = 'Table ' + t.t; $('table').appendChild(o);
+      }
+      try {
+        const rc = await (await fetch('recheck.json')).json();
+        S.flagAt = rc.at || 0; for (const r of rc.items || []) { S.recheck[r.id] = r.why; if (r.at) S.flagAtId[r.id] = r.at; }
+        const n = Object.keys(S.recheck).length;
+        if (n) { const o = document.createElement('option'); o.value = 'recheck'; o.textContent = 'Flagged for a second look (' + n + ')'; $('mode').prepend(o); }
+      } catch (e) { }
+      try { const baked = await (await fetch('labels.json')).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'Luca'; } } catch (e) { }
+      try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; S.labelAt[k] = Date.now(); if (sent[k] === v) S.sent[k] = v; else outbox[k] = v; } } catch (e) { }
+      try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
+      S.byDoc = {}; for (const it of S.items) (S.byDoc[docOf(it)] = S.byDoc[docOf(it)] || []).push(it);
+      rebuild(null);
+    } catch (e) { $('ptext').textContent = 'The card list could not load. Reload the page.'; }
+  }
+  async function connect() {
+    if (!API) { S.guest = true; status('Labels are kept in this browser only (no shared list configured).', 'err'); return; }
+    let first = true;
+    const pull = async () => {
+      try {
+        const j = await (await fetch(API + (API.includes('?') ? '&' : '?') + 't=' + Date.now())).json();
+        for (const [id, val] of Object.entries(j.labels || {})) {
+          if (S.mine[id] && outbox[id] !== undefined) continue;   // mine, still on its way
+          if (val && typeof val.v === 'string') { S.labels[id] = val.v; if (val.at && !((S.labelAt[id] || 0) > val.at)) S.labelAt[id] = val.at; if (!S.mine[id]) S.by[id] = val.name || 'Luca'; }
+        }
+        S.connected = true;
+        if (first) { first = false; status('Connected. Labels save as you go.', 'ok'); if ($('mode').value === 'recheck') { $('mode').value = 'sdfirst'; } rebuild(cur() && cur().id); }
+        else progress();
+      } catch (e) { if (first) status('Could not reach the shared list yet; labels are kept in this browser and sent when it connects.', 'err'); }
+    };
+    await pull(); flush(); setInterval(pull, 20000);
+  }
+  loadItems().then(connect);
+
+})();
+</script>
+</body>
+</html>
