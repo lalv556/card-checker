@@ -216,7 +216,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
   const SUITS = [['s', '♠', 'b'], ['h', '♥', 'r'], ['d', '♦', 'r'], ['c', '♣', 'b']];
   const SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
-  const S = { recheck: {}, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', sent: {}, sentOnce: false };
+  const S = { recheck: {}, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', hist: [], sent: {}, sentOnce: false };
   const $ = id => document.getElementById(id);
 
   // ---------- answer pad ----------
@@ -301,7 +301,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     const idx = new Map(S.items.map((it, i) => [it.id, i]));
     const latest = $('sort').value === 'latest';
     list.sort((a, b) => (mode === 'sdfirst' ? (b.sd - a.sd) : 0) || (latest ? (b.h - a.h) : (a.h - b.h)) || (a.t - b.t) || (idx.get(a.id) - idx.get(b.id)));
-    S.order = list;
+    S.order = list; S.hist = [];
     const k = keepId ? list.findIndex(it => it.id === keepId) : -1;
     S.pos = k >= 0 ? k : firstOpen(0);
     show();
@@ -312,8 +312,14 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     return S.order.length;
   }
   const cur = () => S.order[S.pos];
-  function advance() { S.pos = firstOpen(Math.min(S.pos + 1, S.order.length)); show(); }
-  function go(d) { S.rank = null; S.suit = null; padState(); S.pos = Math.max(0, Math.min(S.order.length - 1, S.pos + d)); show(); }
+  function advance() { S.hist.push(S.pos); S.pos = firstOpen(Math.min(S.pos + 1, S.order.length)); show(); }
+  // Previous goes back through the cards you actually visited (so you can fix the one you just did); Skip moves on and remembers where you were.
+  function go(d) {
+    S.rank = null; S.suit = null; padState();
+    if (d < 0) { if (S.hist.length) S.pos = S.hist.pop(); else S.pos = Math.max(0, S.pos - 1); }
+    else { S.hist.push(S.pos); S.pos = Math.min(S.order.length - 1, S.pos + 1); }
+    show();
+  }
 
   // ---------- drawing ----------
   function img(src) {
