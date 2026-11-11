@@ -96,6 +96,11 @@ summary { cursor: pointer; font-weight: 600 }
 .tables { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px }
 .tables .bar { height: 6px }
 .who { display: flex; gap: 8px; align-items: center; margin: 0 } .who label { font-size: 13px; opacity: .8 } .who input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: inherit; font: inherit }
+.hint { font-weight: 400; font-size: 12px; color: var(--muted) }
+.board span.nm { cursor: pointer } .board span.nm:hover { color: var(--felt); text-decoration: underline }
+.mine { display: flex; flex-wrap: wrap; gap: 5px; max-height: 190px; overflow-y: auto; padding: 2px }
+.mine canvas { width: 36px; height: 48px; border-radius: 3px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.3) } .mine canvas:hover { outline: 2px solid var(--hl) }
+.mine .none { color: var(--muted); font-size: 13px }
 .board { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 5px 10px; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px } .board .me { font-weight: 600 } .board .bar { height: 6px; background: var(--line); border-radius: 3px } .board .bar i { display: block; height: 100%; background: var(--ok); border-radius: 3px }
 .done { text-align: center; padding: 30px 10px; font-family: var(--f-head); font-size: 18px }
 textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size: 11px; background: var(--chip); color: var(--ink); border: 1px solid var(--line); border-radius: 6px }
@@ -180,8 +185,10 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         <button id="bigX" type="button" aria-label="Close">✕</button>
       </div>
       <div class="who"><label for="name">Your name</label><input id="name" type="text" maxlength="24" placeholder="so your labels count on the board" autocomplete="off"></div>
-      <div class="h">Leaderboard</div>
+      <div class="h">Leaderboard <span class="hint">(click a name to label as them)</span></div>
       <div class="board" id="board"></div>
+      <div class="h" id="mineh">Your cards</div>
+      <div class="mine" id="minebox"></div>
       <details>
         <summary>Keyboard</summary>
         <div class="keys">
@@ -386,13 +393,46 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     const rows = Object.entries(c).sort((a, b) => b[1] - a[1]); const top = rows.length ? rows[0][1] : 1; const box = $('board'); box.textContent = '';
     rows.forEach(([n, k], i) => {
       const me = n === (S.name || 'you') && Object.keys(S.mine).length;
-      const a = document.createElement('span'); a.textContent = (i + 1) + '. ' + n; if (me) a.className = 'me';
+      const a = document.createElement('span'); a.textContent = (i + 1) + '. ' + n; a.className = 'nm' + (me ? ' me' : ''); a.title = 'Label as ' + n; a.onclick = () => { S.name = n; $('name').value = n; try { localStorage.setItem('cardcheck-name', n); } catch (e) { } board(); };
       const b = document.createElement('span'); b.className = 'bar'; const f = document.createElement('i'); f.style.width = (100 * k / top) + '%'; b.appendChild(f);
       const d = document.createElement('span'); d.textContent = k; if (me) d.className = 'me';
       box.append(a, b, d);
     });
     if (!rows.length) box.textContent = 'No labels yet';
+    myCards();
   }
+  const MR = { A: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 8, T: 9, J: 10, Q: 11, K: 12 }, MS = { h: 0, d: 1, s: 2, c: 3 };
+  function drawMini(cv, v) {
+    const g = cv.getContext('2d'); g.clearRect(0, 0, 48, 64);
+    const r = v[0], su = v[1]; const sheetImg = $('sheet');
+    if (MR[r] !== undefined && MS[su] !== undefined && sheetImg.complete && sheetImg.naturalWidth) g.drawImage(sheetImg, MR[r] * 48, MS[su] * 64, 48, 64, 0, 0, 48, 64);
+    else {
+      g.fillStyle = '#f4f7f6'; g.fillRect(0, 0, 48, 64); g.strokeStyle = '#999'; g.strokeRect(0.5, 0.5, 47, 63);
+      g.fillStyle = su === 'r' || su === 'h' || su === 'd' ? '#c3313c' : su === 'b' || su === 's' || su === 'c' ? '#172221' : '#777';
+      g.font = 'bold 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(r === 'T' ? '10' : r === 'P' ? 'JQK' : r || '?', 24, 26);
+      g.font = '18px sans-serif'; g.fillText(su === 'h' ? '♥' : su === 'd' ? '♦' : su === 's' ? '♠' : su === 'c' ? '♣' : '?', 24, 48);
+    }
+    g.fillStyle = '#23865a'; g.beginPath(); g.arc(40, 8, 7, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(36.5, 8); g.lineTo(39, 10.5); g.lineTo(43.5, 5.5); g.stroke();
+  }
+  function jumpTo(id) {
+    let k = S.order.findIndex(it => it.id === id);
+    if (k < 0) { $('mode').value = 'all'; $('table').value = 'all'; rebuild(id); k = S.order.findIndex(it => it.id === id); if (k < 0) return; }
+    S.hist.push(S.pos); S.pos = k; S.rank = null; S.suit = null; padState(); show();
+  }
+  function myCards() {
+    const box = $('minebox'); box.textContent = '';
+    const ids = Object.keys(S.mine).filter(id => S.labels[id] !== undefined).sort((a, b) => (S.labelAt[b] || 0) - (S.labelAt[a] || 0));
+    $('mineh').textContent = 'Your cards (' + ids.length + ')';
+    if (!ids.length) { const e = document.createElement('span'); e.className = 'none'; e.textContent = 'Cards you label appear here; click one to go back to it.'; box.appendChild(e); return; }
+    for (const id of ids.slice(0, 300)) {
+      const cv = document.createElement('canvas'); cv.width = 48; cv.height = 64; const it = S.items.find(x => x.id === id);
+      cv.title = (it ? it.who + ' ' + it.slot + ' (Table ' + it.t + ', Hand ' + it.h + '): ' : '') + pretty(S.labels[id]);
+      drawMini(cv, S.labels[id]); cv.onclick = () => jumpTo(id); box.appendChild(cv);
+    }
+  }
+  $('sheet').addEventListener('load', myCards);
   $('name').oninput = () => { S.name = $('name').value.trim().slice(0, 24); try { localStorage.setItem('cardcheck-name', S.name); } catch (e) { } board(); };
   function progress() {
     board();
