@@ -132,7 +132,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       </select>
       <select id="table" aria-label="Table"><option value="all">All tables</option></select>
       <select id="sort" aria-label="Order">
-        <option value="latest">Latest hands first (clearest)</option>
+        <option value="latest" selected>Latest hands first (clearest)</option>
         <option value="hand">Hand order</option>
       </select>
     </div>
@@ -300,6 +300,8 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     flush();
   }
   const isOpen = it => $('mode').value === 'recheck' ? !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt)) : S.labels[it.id] === undefined;
+  const SEED = (() => { let v = ''; try { v = localStorage.getItem('cardcheck-seed') || ''; if (!v) { v = Math.random().toString(36).slice(2); localStorage.setItem('cardcheck-seed', v); } } catch (e) { v = Math.random().toString(36).slice(2); } return v; })();
+  function hrand(key) { let h = 2166136261; const str = SEED + '|' + key; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function rebuild(keepId) {
     const mode = $('mode').value, tb = $('table').value;
     let list = S.items.filter(it => tb === 'all' || String(it.t) === tb);
@@ -307,7 +309,16 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     if (mode === 'recheck') { const order = Object.keys(S.recheck); const pos = new Map(order.map((k, i) => [k, i])); list = list.filter(it => pos.has(it.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id)); S.order = list; const k = keepId ? list.findIndex(it => it.id === keepId) : -1; S.pos = k >= 0 ? k : firstOpen(0); show(); return; }
     const idx = new Map(S.items.map((it, i) => [it.id, i]));
     const latest = $('sort').value === 'latest';
-    list.sort((a, b) => (mode === 'sdfirst' ? (b.sd - a.sd) : 0) || (latest ? (b.h - a.h) : (a.h - b.h)) || (a.t - b.t) || (idx.get(a.id) - idx.get(b.id)));
+    const tier = it => mode === 'sdfirst' ? (it.sd ? 1 : 0) : 0, hkey = it => tier(it) + '|' + it.t + ':' + it.h;
+    list.sort((a, b) => (tier(b) - tier(a)) || (latest ? (b.h - a.h) : (a.h - b.h)) || (a.t - b.t) || (idx.get(a.id) - idx.get(b.id)));
+    if (latest) {
+      // Keep latest-first, but take the hands that still have work left in groups of 12 and give each person
+      // their own random order inside each group, so people working at the same time rarely land on the same hand.
+      const openHands = new Set(list.filter(it => S.labels[it.id] === undefined).map(hkey));
+      const grp = new Map(), orig = new Map(list.map((it, i) => [it.id, i])); let n = 0;
+      for (const it of list) { const k = hkey(it); if (grp.has(k)) continue; grp.set(k, Math.floor(n / 12)); if (openHands.has(k)) n++; }
+      list.sort((a, b) => (grp.get(hkey(a)) - grp.get(hkey(b))) || (hrand(hkey(a)) - hrand(hkey(b))) || (orig.get(a.id) - orig.get(b.id)));
+    }
     S.order = list; S.hist = [];
     const k = keepId ? list.findIndex(it => it.id === keepId) : -1;
     S.pos = k >= 0 ? k : firstOpen(0);
@@ -544,7 +555,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         else progress();
       } catch (e) { if (first) status('Could not reach the shared list yet; labels are kept in this browser and sent when it connects.', 'err'); }
     };
-    await pull(); flush(); setInterval(pull, 20000);
+    await pull(); flush(); setInterval(pull, 5000);
   }
   loadItems().then(connect);
 
