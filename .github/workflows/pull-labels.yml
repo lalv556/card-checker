@@ -1,0 +1,23 @@
+name: Pull labels from the sheet
+on:
+  push:
+    paths: ['.github/workflows/pull-labels.yml', 'pull.txt']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download labels
+        env:
+          URL: https://script.google.com/macros/s/AKfycbyTHq15PsC9wDEr-5msr0DHbMZ74IvxDj48sNnmVVbJ8cxlluGk6N7HV2MpKV-57Alb/exec
+        run: |
+          curl -sSL "$URL?t=$(date +%s)" -o sheet_labels.json
+          python3 -c "import json; d = json.load(open('sheet_labels.json')); print(d['n'], len(d['labels']))"
+          git config user.name github-actions
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add sheet_labels.json
+          git commit -m "Pull labels from the sheet" || echo "no change"
+          git push
