@@ -187,6 +187,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       <div class="who"><label for="name">Your name</label><input id="name" type="text" maxlength="24" placeholder="so your labels count on the board" autocomplete="off"></div>
       <div class="h">Leaderboard <span class="hint">(click a name to label as them)</span></div>
       <div class="board" id="board"></div>
+      <div class="hint" id="boardnote" style="margin-top:4px"></div>
       <div class="h" id="mineh">Your cards</div>
       <div class="mine" id="minebox"></div>
       <details>
@@ -412,6 +413,9 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       box.append(a, b, d);
     });
     if (!rows.length) box.textContent = 'No labels yet';
+    // Explain why the board can add up to more than the "labelled" count at the top.
+    let hid = 0; if (S.itemIds) for (const [id, v] of Object.entries(S.labels)) if (scores(v) && !S.itemIds.has(id)) hid++;
+    $('boardnote').textContent = (hid ? 'Includes ' + hid + ' labels on the hidden check/fold players’ cards, which aren’t in the count at the top. ' : '') + 'A plain “Can’t tell” doesn’t score.';
     myCards();
   }
   const MR = { A: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 8, T: 9, J: 10, Q: 11, K: 12 }, MS = { h: 0, d: 1, s: 2, c: 3 };
@@ -536,6 +540,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       try { const baked = await (await fetch('labels.json')).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'Luca'; } } catch (e) { }
       try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; S.labelAt[k] = Date.now(); if (sent[k] === v) S.sent[k] = v; else outbox[k] = v; } } catch (e) { }
       try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
+      S.itemIds = new Set(S.items.map(it => it.id));
       S.byDoc = {}; for (const it of S.items) (S.byDoc[docOf(it)] = S.byDoc[docOf(it)] || []).push(it);
       rebuild(null);
     } catch (e) { $('ptext').textContent = 'The card list could not load. Reload the page.'; }
