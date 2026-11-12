@@ -535,21 +535,21 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   // ---------- data ----------
   async function loadItems() {
     try {
-      const tables = await (await fetch('tables.json')).json();
+      const tables = await (await fetch('tables.json', { cache: 'no-cache' })).json();
       for (const t of tables) {
-        const arr = await (await fetch(t.file)).json();
+        const arr = await (await fetch(t.file, { cache: 'no-cache' })).json();
         // Players who only ever checked or folded are left out for now (their cards can be done later).
         const QUIET = new Set(["zokonna12", "AkshayTambe14", "mayukha-pochana", "Tadpul", "TheoBradb", "MalayRMehta", "FinlaySanders", "vaibhavnadipalli", "MasterUgwae", "GalacticGitHuber", "Taz371", "paolo-bravo", "akashDTV", "A-Wild-Bean", "AnishLomite", "martinuu123", "Ben-Atherton1", "ccamelo19", "aarushSrepos", "Zinexxxxxx", "AdamClarke8", "ixng"]);
         S.items.push(...arr.filter(it => it.who === 'Board' || !QUIET.has(it.who)));
         const o = document.createElement('option'); o.value = String(t.t); o.textContent = 'Table ' + t.t; $('table').appendChild(o);
       }
       try {
-        const rc = await (await fetch('recheck.json')).json();
+        const rc = await (await fetch('recheck.json', { cache: 'no-cache' })).json();
         S.flagAt = rc.at || 0; for (const r of rc.items || []) { S.recheck[r.id] = r.why; if (r.at) S.flagAtId[r.id] = r.at; }
         const n = Object.keys(S.recheck).length;
         if (n) { const o = document.createElement('option'); o.value = 'recheck'; o.textContent = 'Second look (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
       } catch (e) { }
-      try { const baked = await (await fetch('labels.json')).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
+      try { const baked = await (await fetch('labels.json', { cache: 'no-cache' })).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
       try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; S.labelAt[k] = Date.now(); if (sent[k] === v) S.sent[k] = v; else outbox[k] = v; } } catch (e) { }
       try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
       S.itemIds = new Set(S.items.map(it => it.id));
