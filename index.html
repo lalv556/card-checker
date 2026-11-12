@@ -400,8 +400,8 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     for (let i = 1; i <= 6; i++) { const n = S.order[S.pos + i]; if (n) img(n.img); }
   }
   function board() {
-    // A label scores only if it pins down the number or the suit: a bare "can't tell" or a face card with no suit doesn't count.
-    const scores = v => typeof v === 'string' && v.length >= 2 && (/^[A2-9TJQK]$/.test(v[0]) || 'shdc'.includes(v[1]));
+    // Every label scores except a bare "can't tell" (number and suit both unknown). Face cards count, colour or not.
+    const scores = v => typeof v === 'string' && v.length >= 2;
     const c = {}; for (const [id, v] of Object.entries(S.labels)) { if (!scores(v)) continue; const n = S.mine[id] ? (S.name || 'you') : (S.by[id] || 'Luca'); c[n] = (c[n] || 0) + 1; }
     const rows = Object.entries(c).sort((a, b) => b[1] - a[1]); const top = rows.length ? rows[0][1] : 1; const box = $('board'); box.textContent = '';
     rows.forEach(([n, k], i) => {
