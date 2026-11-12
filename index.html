@@ -509,7 +509,9 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       const tables = await (await fetch('tables.json')).json();
       for (const t of tables) {
         const arr = await (await fetch(t.file)).json();
-        S.items.push(...arr);
+        // Players who only ever checked or folded are left out for now (their cards can be done later).
+        const QUIET = new Set(["zokonna12", "AkshayTambe14", "mayukha-pochana", "Tadpul", "TheoBradb", "MalayRMehta", "FinlaySanders", "vaibhavnadipalli", "MasterUgwae", "GalacticGitHuber", "Taz371", "paolo-bravo", "akashDTV", "A-Wild-Bean", "AnishLomite", "martinuu123", "Ben-Atherton1", "ccamelo19", "aarushSrepos", "Zinexxxxxx", "AdamClarke8", "ixng"]);
+        S.items.push(...arr.filter(it => it.who === 'Board' || !QUIET.has(it.who)));
         const o = document.createElement('option'); o.value = String(t.t); o.textContent = 'Table ' + t.t; $('table').appendChild(o);
       }
       try {
