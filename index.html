@@ -97,7 +97,7 @@ summary { cursor: pointer; font-weight: 600 }
 .tables .bar { height: 6px }
 .who { display: flex; gap: 8px; align-items: center; margin: 0 } .who label { font-size: 13px; opacity: .8 } .who input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip); color: inherit; font: inherit }
 .hint { font-weight: 400; font-size: 12px; color: var(--muted) }
-.board span.nm { cursor: pointer } .board span.nm:hover { color: var(--felt); text-decoration: underline }
+.board span.pseudo { color: var(--muted); font-style: italic } .board span.nm { cursor: pointer } .board span.nm:hover { color: var(--felt); text-decoration: underline }
 .mine { display: flex; flex-wrap: wrap; gap: 5px; max-height: 190px; overflow-y: auto; padding: 2px }
 .mine canvas { width: 36px; height: 48px; border-radius: 3px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.3) } .mine canvas:hover { outline: 2px solid var(--hl) }
 .mine .none { color: var(--muted); font-size: 13px }
@@ -307,7 +307,15 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     const mode = $('mode').value, tb = $('table').value;
     let list = S.items.filter(it => tb === 'all' || String(it.t) === tb);
     if (mode === 'sd') list = list.filter(it => it.sd);
-    if (mode === 'recheck') { const order = Object.keys(S.recheck); const pos = new Map(order.map((k, i) => [k, i])); list = list.filter(it => pos.has(it.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id)); S.order = list; const k = keepId ? list.findIndex(it => it.id === keepId) : -1; S.pos = k >= 0 ? k : firstOpen(0); show(); return; }
+    if (mode === 'recheck') {
+      const order = Object.keys(S.recheck); const pos = new Map(order.map((k, i) => [k, i]));
+      list = list.filter(it => pos.has(it.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id));
+      // same per-person shuffle as the main queue, so people re-checking at the same time rarely collide
+      const hk = it => it.t + ':' + it.h, open = new Set(list.filter(isOpen).map(hk)), grp = new Map(); let n = 0;
+      for (const it of list) { const k = hk(it); if (grp.has(k)) continue; grp.set(k, Math.floor(n / 12)); if (open.has(k)) n++; }
+      list.sort((a, b) => (grp.get(hk(a)) - grp.get(hk(b))) || (hrand(hk(a)) - hrand(hk(b))) || (pos.get(a.id) - pos.get(b.id)));
+      S.order = list; S.hist = []; const k = keepId ? list.findIndex(it => it.id === keepId) : -1; S.pos = k >= 0 ? k : firstOpen(0); show(); return;
+    }
     const idx = new Map(S.items.map((it, i) => [it.id, i]));
     const latest = $('sort').value === 'latest';
     const tier = it => mode === 'sdfirst' ? (it.sd ? 1 : 0) : 0, hkey = it => tier(it) + '|' + it.t + ':' + it.h;
@@ -388,13 +396,14 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     $('slot').textContent = it.slot;
     $('where').textContent = 'Table ' + it.t + ' · Hand ' + it.h + ' · ' + it.time;
     $('sdtag').hidden = !it.sd; $('sdtag').textContent = it.who === 'Board' ? 'Board card' : 'Showdown'; $('sdtag').className = 'tag sd';
-    const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = gtxt || '—';
+    const blind = $('mode').value === 'recheck';
+    const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the second look' : (gtxt || '—');
     const why = S.recheck[it.id], lab = S.labels[it.id];
     $('why').hidden = !why; if (why) { $('why').innerHTML = ''; const b = document.createElement('b'); b.textContent = 'Why this card is flagged: '; $('why').append(b, document.createTextNode(why)); }
-    const keep = $('mode').value === 'recheck' && lab && lab !== '?';
-    $('acc').innerHTML = keep ? '<kbd>Enter</kbd> keeps your label' : '<kbd>Enter</kbd> accepts it';
-    $('acc').hidden = !(keep || guessValue(it.guess));
-    const v = S.labels[it.id]; $('mine').textContent = v !== undefined ? 'Your label: ' + pretty(v) : '';
+    $('acc').innerHTML = '<kbd>Enter</kbd> accepts it';
+    $('acc').hidden = blind || !guessValue(it.guess);
+    const v = S.labels[it.id]; const fresh = blind && !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt));
+    $('mine').textContent = v !== undefined && !fresh ? 'Your label: ' + pretty(v) : '';
     $('chead').textContent = it.ctx.head || '—'; $('cboard').textContent = it.ctx.board || 'No board (hand ended before the flop)';
     $('cres').textContent = (it.ctx.result || []).join(' · ') || '—';
     draw();
@@ -403,11 +412,14 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   function board() {
     // Every label scores except a bare "can't tell" (number and suit both unknown). Face cards count, colour or not.
     const scores = v => typeof v === 'string' && v.length >= 2;
-    const c = {}; for (const [id, v] of Object.entries(S.labels)) { if (!scores(v)) continue; const n = S.mine[id] ? (S.name || 'you') : (S.by[id] || 'Luca'); c[n] = (c[n] || 0) + 1; }
+    const c = {}; for (const [id, v] of Object.entries(S.labels)) { if (!scores(v)) continue; const n = S.mine[id] ? (S.name || 'you') : (S.by[id] || 'No name'); c[n] = (c[n] || 0) + 1; }
     const rows = Object.entries(c).sort((a, b) => b[1] - a[1]); const top = rows.length ? rows[0][1] : 1; const box = $('board'); box.textContent = '';
     rows.forEach(([n, k], i) => {
       const me = n === (S.name || 'you') && Object.keys(S.mine).length;
-      const a = document.createElement('span'); a.textContent = (i + 1) + '. ' + n; a.className = 'nm' + (me ? ' me' : ''); a.title = 'Label as ' + n; a.onclick = () => { S.name = n; $('name').value = n; try { localStorage.setItem('cardcheck-name', n); } catch (e) { } board(); };
+      const pseudo = n === 'First page' || n === 'No name';
+      const a = document.createElement('span'); a.textContent = (i + 1) + '. ' + n; a.className = (pseudo ? 'pseudo' : 'nm') + (me ? ' me' : '');
+      if (pseudo) a.title = n === 'First page' ? 'Labels from the first Card Check page, which didn\u2019t record names' : 'Labels saved without a name';
+      else { a.title = 'Label as ' + n; a.onclick = () => { S.name = n; $('name').value = n; try { localStorage.setItem('cardcheck-name', n); } catch (e) { } board(); }; }
       const b = document.createElement('span'); b.className = 'bar'; const f = document.createElement('i'); f.style.width = (100 * k / top) + '%'; b.appendChild(f);
       const d = document.createElement('span'); d.textContent = k; if (me) d.className = 'me';
       box.append(a, b, d);
@@ -481,7 +493,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     if (up === 'R' || up === 'B') { pickSuit(up.toLowerCase()); e.preventDefault(); return; }
     if (up === 'F') { pickRank('P'); e.preventDefault(); return; }
     if (up === 'X') { cantTell(); e.preventDefault(); return; }
-    if (k === 'Enter' && $('mode').value === 'recheck' && cur() && S.labels[cur().id] && S.labels[cur().id] !== '?') { save(S.labels[cur().id]); e.preventDefault(); return; }
+    if (k === 'Enter' && $('mode').value === 'recheck') { e.preventDefault(); return; }
     if (k === 'Enter') { const g = cur() && guessValue(cur().guess); if (g) save(g); else status('My guess has no rank to accept. Pick the card instead.', 'err'); e.preventDefault(); return; }
     if (k === 'Backspace' || k === 'ArrowLeft') { go(-1); e.preventDefault(); return; }
     if (k === 'ArrowRight') { go(1); e.preventDefault(); return; }
@@ -535,9 +547,9 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         const rc = await (await fetch('recheck.json')).json();
         S.flagAt = rc.at || 0; for (const r of rc.items || []) { S.recheck[r.id] = r.why; if (r.at) S.flagAtId[r.id] = r.at; }
         const n = Object.keys(S.recheck).length;
-        if (n) { const o = document.createElement('option'); o.value = 'recheck'; o.textContent = 'Flagged for a second look (' + n + ')'; $('mode').prepend(o); }
+        if (n) { const o = document.createElement('option'); o.value = 'recheck'; o.textContent = 'Second look (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
       } catch (e) { }
-      try { const baked = await (await fetch('labels.json')).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'Luca'; } } catch (e) { }
+      try { const baked = await (await fetch('labels.json')).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
       try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; S.labelAt[k] = Date.now(); if (sent[k] === v) S.sent[k] = v; else outbox[k] = v; } } catch (e) { }
       try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
       S.itemIds = new Set(S.items.map(it => it.id));
@@ -553,10 +565,10 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         const j = await (await fetch(API + (API.includes('?') ? '&' : '?') + 't=' + Date.now())).json();
         for (const [id, val] of Object.entries(j.labels || {})) {
           if (S.mine[id] && outbox[id] !== undefined) continue;   // mine, still on its way
-          if (val && typeof val.v === 'string') { S.labels[id] = val.v; if (val.at && !((S.labelAt[id] || 0) > val.at)) S.labelAt[id] = val.at; if (!S.mine[id]) S.by[id] = val.name || 'Luca'; }
+          if (val && typeof val.v === 'string') { S.labels[id] = val.v; if (val.at && !((S.labelAt[id] || 0) > val.at)) S.labelAt[id] = val.at; if (!S.mine[id]) S.by[id] = val.name || 'No name'; }
         }
         S.connected = true;
-        if (first) { first = false; status('Connected. Labels save as you go.', 'ok'); if ($('mode').value === 'recheck') { $('mode').value = 'sdfirst'; } rebuild(cur() && cur().id); }
+        if (first) { first = false; status('Connected. Labels save as you go.', 'ok'); if ($('mode').value === 'recheck' && !S.items.some(it => S.recheck[it.id] && !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt)))) { $('mode').value = 'sdfirst'; } rebuild(cur() && cur().id); }
         else progress();
       } catch (e) { if (first) status('Could not reach the shared list yet; labels are kept in this browser and sent when it connects.', 'err'); }
     };
