@@ -224,7 +224,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
   const SUITS = [['s', '♠', 'b'], ['h', '♥', 'r'], ['d', '♦', 'r'], ['c', '♣', 'b']];
   const SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
-  const S = { fable: {}, recheck: {}, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', hist: [], sent: {}, sentOnce: false };
+  const S = { fable: {}, recheck: {}, rto: {}, rblind: true, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', hist: [], sent: {}, sentOnce: false };
   const $ = id => document.getElementById(id);
   const FAB = 'Fable (AI)';   /* cards the AI read itself from enlarged, sharpened frames; any human label replaces them */
 
@@ -401,13 +401,13 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     $('slot').textContent = it.slot;
     $('where').textContent = 'Table ' + it.t + ' · Hand ' + (it.hl || it.h) + ' · ' + it.time;
     $('sdtag').hidden = !it.sd; $('sdtag').textContent = it.who === 'Board' ? 'Board card' : 'Showdown'; $('sdtag').className = 'tag sd';
-    const blind = $('mode').value === 'recheck';
+    const rck = $('mode').value === 'recheck', blind = rck && S.rblind;
     const fab = $('mode').value === 'fable';
-    const gtxt = fab ? pretty(S.fable[it.id]) : (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the ' + (S.rtitle || 'second look').toLowerCase() : (gtxt || '—');
+    const gtxt = fab ? pretty(S.fable[it.id]) : (rck && !blind ? pretty(S.rto[it.id]) : (it.guess || '').replace(/\s*\(\?\)/g, '')); $('guess').textContent = blind ? 'hidden for the ' + (S.rtitle || 'second look').toLowerCase() : (gtxt || '—');
     const why = S.recheck[it.id], lab = S.labels[it.id];
     $('why').hidden = !why; if (why) { $('why').innerHTML = ''; const b = document.createElement('b'); b.textContent = 'Why this card is flagged: '; $('why').append(b, document.createTextNode(why)); }
     $('acc').innerHTML = '<kbd>Enter</kbd> accepts it';
-    $('acc').hidden = blind || !(fab ? S.fable[it.id] : guessValue(it.guess));
+    $('acc').hidden = blind || !(fab ? S.fable[it.id] : (rck ? S.rto[it.id] : guessValue(it.guess)));
     const v = S.labels[it.id]; const fresh = blind && !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt));
     $('mine').textContent = v !== undefined && !fresh ? (S.mine[it.id] ? 'Your label: ' : (S.by[it.id] === FAB ? 'Read by Fable: ' : 'Labelled: ')) + pretty(v) : '';
     $('chead').textContent = it.ctx.head || '—'; $('cboard').textContent = it.ctx.board || 'No board (hand ended before the flop)';
@@ -499,8 +499,8 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     if (up === 'R' || up === 'B') { pickSuit(up.toLowerCase()); e.preventDefault(); return; }
     if (up === 'F') { pickRank('P'); e.preventDefault(); return; }
     if (up === 'X') { cantTell(); e.preventDefault(); return; }
-    if (k === 'Enter' && $('mode').value === 'recheck') { e.preventDefault(); return; }
-    if (k === 'Enter') { const g = cur() && ($('mode').value === 'fable' ? S.fable[cur().id] : guessValue(cur().guess)); if (g) save(g); else status('My guess has no rank to accept. Pick the card instead.', 'err'); e.preventDefault(); return; }
+    if (k === 'Enter' && $('mode').value === 'recheck' && S.rblind) { e.preventDefault(); return; }
+    if (k === 'Enter') { const md = $('mode').value; const g = cur() && (md === 'fable' ? S.fable[cur().id] : (md === 'recheck' ? S.rto[cur().id] : guessValue(cur().guess))); if (g) save(g); else status('My guess has no rank to accept. Pick the card instead.', 'err'); e.preventDefault(); return; }
     if (k === 'Backspace' || k === 'ArrowLeft') { go(-1); e.preventDefault(); return; }
     if (k === 'ArrowRight') { go(1); e.preventDefault(); return; }
     if (k === 'Escape') { S.rank = null; S.suit = null; padState(); }
@@ -551,9 +551,11 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       }
       try {
         const rc = await (await fetch('recheck.json', { cache: 'no-cache' })).json();
-        S.flagAt = rc.at || 0; for (const r of rc.items || []) { S.recheck[r.id] = r.why; if (r.at) S.flagAtId[r.id] = r.at; }
+        /* a re-check round: blind by default (the earlier answer and my guess stay hidden); "blind": false shows what I read for each card and lets Enter accept it; "default": false keeps it from opening first */
+        S.flagAt = rc.at || 0; S.rblind = rc.blind !== false;
+        for (const r of rc.items || []) { if (!S.items.some(it => it.id === r.id)) continue; S.recheck[r.id] = r.why; if (r.at) S.flagAtId[r.id] = r.at; if (r.to) S.rto[r.id] = r.to; }
         const n = Object.keys(S.recheck).length;
-        if (n) { S.rtitle = rc.title || 'Second look'; const o = document.createElement('option'); o.value = 'recheck'; o.textContent = S.rtitle + ' (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
+        if (n) { S.rtitle = rc.title || 'Second look'; const o = document.createElement('option'); o.value = 'recheck'; o.textContent = S.rtitle + ' (' + n + ')'; $('mode').prepend(o); if (rc.default !== false) $('mode').value = 'recheck'; }
       } catch (e) { }
       const n3 = S.items.filter(it => it.r === 3).length;
       if (n3) { const o = document.createElement('option'); o.value = 'new'; o.textContent = 'New cards: boards and the rest (' + n3 + ')'; $('mode').prepend(o); if ($('mode').value !== 'recheck') $('mode').value = 'new'; }

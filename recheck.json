@@ -1,6 +1,209 @@
 {
-"at": 1794528865883,
-"title": "Deciding look",
-"items": [],
-"note": "Deciding look finished; nothing left to re-check."
+"at": 1794539974807,
+"title": "Colour check",
+"blind": false,
+"default": false,
+"note": "Cards whose label and picture disagree. Each shows what Fable read; Enter accepts it, or type what you see.",
+"items": [
+{
+"id": "T6-H82-board-3",
+"why": "First labelled 10♣; a later look left the suit open; the pips are red in the picture.",
+"to": "Td"
+},
+{
+"id": "T7-H40-board-3",
+"why": "First labelled 10♣; a later look left the suit open; the pips are red in the picture.",
+"to": "Td"
+},
+{
+"id": "T6-H93-sawh0707-r",
+"why": "First labelled 10♣; a later look left the suit open; the pips are red in the picture.",
+"to": "Td"
+},
+{
+"id": "T6-H96-hcGoncalves-l",
+"why": "First labelled 2♣; the pips are red in the picture.",
+"to": "2d"
+},
+{
+"id": "T6-H28-sillybabs-r",
+"why": "First labelled 4♣; the pips are red in the picture.",
+"to": "4d"
+},
+{
+"id": "T6-H101-KavyaP-dev-l",
+"why": "First labelled 4♣; the pips are red in the picture.",
+"to": "4d"
+},
+{
+"id": "T6-H82-KavyaP-dev-r",
+"why": "First labelled 10♣; a later look left the suit open; the pips are red in the picture.",
+"to": "9d"
+},
+{
+"id": "T3-H20-board-4",
+"why": "First labelled 10♣; a later look left the suit open; the pips are red in the picture.",
+"to": "Td"
+},
+{
+"id": "T5-H15-board-2",
+"why": "First labelled 7♣; a later look left the suit open; the pips are red in the picture.",
+"to": "7d"
+},
+{
+"id": "T5-H43-jmora-005-r",
+"why": "First labelled 2♠; the pips are red in the picture.",
+"to": "2d"
+},
+{
+"id": "T7-H52-SystematicError-r",
+"why": "First labelled 9♣; the pips are red in the picture.",
+"to": "9d"
+},
+{
+"id": "T5-H60-board-3",
+"why": "First labelled 2♠; a later look left the suit open; the pips are red in the picture.",
+"to": "2d"
+},
+{
+"id": "T5-H92-board-1",
+"why": "First labelled 4♣; a later look left the suit open; the pips are red in the picture.",
+"to": "4d"
+},
+{
+"id": "T6-H82-board-2",
+"why": "First labelled 6♣; a later look left the suit open; the pips are red in the picture.",
+"to": "6d"
+},
+{
+"id": "T7-H40-board-4",
+"why": "First labelled 9♣; a later look left the suit open; the pips are red in the picture.",
+"to": "9d"
+},
+{
+"id": "T6-H33-sillybabs-l",
+"why": "First labelled 8♣; a later look left the suit open; the pips are red in the picture.",
+"to": "8d"
+},
+{
+"id": "T6-H32-board-1",
+"why": "First labelled 2♣; the second look left the suit open. Both flushes in this hand need four board cards of one suit, and the pips look red next to the 5♣, so the history says 2♦.",
+"to": "2d"
+},
+{
+"id": "T6-H32-sillybabs-l",
+"why": "First labelled 9♣; the second look left the suit open. His flush needs the suit of the board, which looks like diamonds.",
+"to": "9d"
+},
+{
+"id": "T6-H32-board-2",
+"why": "First labelled 8♣; the second look left the suit open. Both flushes in this hand need four board cards of one suit, and the pips look red next to the 5♣, so the history says 8♦.",
+"to": "8d"
+},
+{
+"id": "T5-H55-board-1",
+"why": "First labelled 6♣; a later look left the suit open; the pips are red in the picture.",
+"to": "6r"
+},
+{
+"id": "T6-H19-KavyaP-dev-l",
+"why": "First labelled 2♣; the pips are red in the picture.",
+"to": "2d"
+},
+{
+"id": "T6-H94-sawh0707-l",
+"why": "First labelled 7♣; the pips are red in the picture.",
+"to": "7d"
+},
+{
+"id": "T6-H95-board-3",
+"why": "First labelled 3♣; a later look left the suit open; the pips are red in the picture.",
+"to": "3d"
+},
+{
+"id": "T6-H94-KavyaP-dev-r",
+"why": "First labelled 3♣; the pips are red in the picture.",
+"to": "3d"
+},
+{
+"id": "T5-H94-jmora-005-l",
+"why": "First labelled 7♣; the pips are red in the picture.",
+"to": "7d"
+},
+{
+"id": "T5-H41-jifengtian001-r",
+"why": "First labelled 9♣; a later look left the suit open; the pips are red in the picture.",
+"to": "9d"
+},
+{
+"id": "T6-H22-sillybabs-l",
+"why": "First labelled black 6; the pips are red in the picture.",
+"to": "6d"
+},
+{
+"id": "T6-H24-AlexMoses-PhD-r",
+"why": "First labelled 5♣; a later look left the suit open; the pips are red in the picture.",
+"to": "5d"
+},
+{
+"id": "T6-H20-sillybabs-l",
+"why": "First labelled 6♣; the pips are red in the picture.",
+"to": "6d"
+},
+{
+"id": "T5-H13-board-4",
+"why": "First labelled 2♠; a later look left the suit open; the pips are red in the picture.",
+"to": "2r"
+},
+{
+"id": "T5-H12-board-5",
+"why": "First labelled 2♠; a later look left the suit open; the pips are red in the picture.",
+"to": "2d"
+},
+{
+"id": "T5-H22-jifengtian001-r",
+"why": "First labelled black 3; the pips are red in the picture.",
+"to": "3r"
+},
+{
+"id": "T3-H13-sath69-l",
+"why": "First labelled 5♣; a later look left the suit open; the pips are red in the picture.",
+"to": "5d"
+},
+{
+"id": "T6-H32-AlexMoses-PhD-l",
+"why": "First labelled 7♣; the second look left the suit open. His flush needs the suit of the board, which looks like diamonds.",
+"to": "7d"
+},
+{
+"id": "T5-H56-board-2",
+"why": "First labelled 8♠; a later look left the suit open; the pips are red in the picture.",
+"to": "8r"
+},
+{
+"id": "T6-H19-sillybabs-r",
+"why": "First labelled 9♣; the pips are red in the picture.",
+"to": "9r"
+},
+{
+"id": "T5-H29-board-2",
+"why": "First labelled 9♣; a later look left the suit open; the pips are red in the picture.",
+"to": "9r"
+},
+{
+"id": "T5-H27-board-4",
+"why": "First labelled 5♠; a later look left the suit open; the pips are red in the picture.",
+"to": "5r"
+},
+{
+"id": "T5-H11-board-5",
+"why": "First labelled 9♣; a later look left the suit open; the pips are red in the picture.",
+"to": "9r"
+},
+{
+"id": "T1-H128-sawh0707-l",
+"why": "Labelled 9♠. I count eight pips (2, 1, 2, 1, 2), not nine.",
+"to": "8s"
+}
+]
 }
