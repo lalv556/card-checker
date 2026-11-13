@@ -397,7 +397,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     $('where').textContent = 'Table ' + it.t + ' · Hand ' + it.h + ' · ' + it.time;
     $('sdtag').hidden = !it.sd; $('sdtag').textContent = it.who === 'Board' ? 'Board card' : 'Showdown'; $('sdtag').className = 'tag sd';
     const blind = $('mode').value === 'recheck';
-    const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the second look' : (gtxt || '—');
+    const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the ' + (S.rtitle || 'second look').toLowerCase() : (gtxt || '—');
     const why = S.recheck[it.id], lab = S.labels[it.id];
     $('why').hidden = !why; if (why) { $('why').innerHTML = ''; const b = document.createElement('b'); b.textContent = 'Why this card is flagged: '; $('why').append(b, document.createTextNode(why)); }
     $('acc').innerHTML = '<kbd>Enter</kbd> accepts it';
@@ -547,7 +547,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         const rc = await (await fetch('recheck.json', { cache: 'no-cache' })).json();
         S.flagAt = rc.at || 0; for (const r of rc.items || []) { S.recheck[r.id] = r.why; if (r.at) S.flagAtId[r.id] = r.at; }
         const n = Object.keys(S.recheck).length;
-        if (n) { const o = document.createElement('option'); o.value = 'recheck'; o.textContent = 'Second look (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
+        if (n) { S.rtitle = rc.title || 'Second look'; const o = document.createElement('option'); o.value = 'recheck'; o.textContent = S.rtitle + ' (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
       } catch (e) { }
       try { const baked = await (await fetch('labels.json', { cache: 'no-cache' })).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
       try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; S.labelAt[k] = Date.now(); if (sent[k] === v) S.sent[k] = v; else outbox[k] = v; } } catch (e) { }
