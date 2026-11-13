@@ -271,6 +271,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   function save(v) {
     const it = cur(); if (!it) return;
     S.labels[it.id] = v; S.labelAt[it.id] = Date.now(); S.mine[it.id] = true; S.by[it.id] = S.name || 'you'; S.rank = null; S.suit = null; padState(); keepMine(); board();
+    if ($('mode').value === 'recheck') delete S.sent[it.id];   /* in a re-check round, confirming the same answer is still news: send it */
     persist(docOf(it));
     status((S.connected ? 'Saved ' : 'Kept on this page: ') + it.who + ' ' + it.slot + ' = ' + pretty(v) + (S.name ? '' : '. Add your name in the box on the right so these count on the leaderboard.'), S.connected ? 'ok' : 'err');
     if (!S.name && !S.nudged) { S.nudged = true; const nb = $('name'); nb.style.outline = '2px solid var(--hl)'; setTimeout(() => { nb.style.outline = ''; }, 4000); }
