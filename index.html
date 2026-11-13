@@ -224,8 +224,9 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
   const SUITS = [['s', '♠', 'b'], ['h', '♥', 'r'], ['d', '♦', 'r'], ['c', '♣', 'b']];
   const SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
-  const S = { recheck: {}, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', hist: [], sent: {}, sentOnce: false };
+  const S = { fable: {}, recheck: {}, flagAtId: {}, flagAt: 0, labelAt: {}, items: [], order: [], pos: 0, labels: {}, rank: null, suit: null, db: null, imgs: {}, queue: {}, dirty: {}, connected: false, mine: {}, uid: '', guest: false, by: {}, name: '', hist: [], sent: {}, sentOnce: false };
   const $ = id => document.getElementById(id);
+  const FAB = 'Fable (AI)';   /* cards the AI read itself from enlarged, sharpened frames; any human label replaces them */
 
   // ---------- answer pad ----------
   RANKS.forEach(r => { const b = document.createElement('button'); b.type = 'button'; b.className = 'rank'; b.dataset.r = r; b.textContent = r === 'T' ? '10' : r; b.onclick = () => pickRank(r); $('ranks').appendChild(b); });
@@ -301,7 +302,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     for (const it of S.byDoc[doc] || []) if (S.mine[it.id] && S.labels[it.id] !== undefined && S.sent[it.id] !== S.labels[it.id]) outbox[it.id] = S.labels[it.id];
     flush();
   }
-  const isOpen = it => $('mode').value === 'recheck' ? !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt)) : S.labels[it.id] === undefined;
+  const isOpen = it => $('mode').value === 'recheck' ? !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt)) : ($('mode').value === 'fable' ? (!S.mine[it.id] && S.by[it.id] === FAB) : S.labels[it.id] === undefined);
   const SEED = (() => { let v = ''; try { v = localStorage.getItem('cardcheck-seed') || ''; if (!v) { v = Math.random().toString(36).slice(2); localStorage.setItem('cardcheck-seed', v); } } catch (e) { v = Math.random().toString(36).slice(2); } return v; })();
   function hrand(key) { let h = 2166136261; const str = SEED + '|' + key; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function rebuild(keepId) {
@@ -309,6 +310,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     let list = S.items.filter(it => tb === 'all' || String(it.t) === tb);
     if (mode === 'sd') list = list.filter(it => it.sd);
     if (mode === 'new') list = list.filter(it => it.r === 3);   /* round 3: cards that were never on the page before */
+    if (mode === 'fable') list = list.filter(it => S.fable[it.id] !== undefined);
     if (mode === 'recheck') {
       const order = Object.keys(S.recheck); const pos = new Map(order.map((k, i) => [k, i]));
       list = list.filter(it => pos.has(it.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id));
@@ -326,7 +328,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     if (latest) {
       // Keep latest-first, but take the hands that still have work left in groups of 12 and give each person
       // their own random order inside each group, so people working at the same time rarely land on the same hand.
-      const openHands = new Set(list.filter(it => S.labels[it.id] === undefined).map(hkey));
+      const openHands = new Set(list.filter(isOpen).map(hkey));
       const grp = new Map(), orig = new Map(list.map((it, i) => [it.id, i])); let n = 0;
       for (const it of list) { const k = hkey(it); if (grp.has(k)) continue; grp.set(k, Math.floor(n / 12)); if (openHands.has(k)) n++; }
       list.sort((a, b) => (grp.get(hkey(a)) - grp.get(hkey(b))) || (hrand(hkey(a)) - hrand(hkey(b))) || (orig.get(a.id) - orig.get(b.id)));
@@ -400,13 +402,14 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     $('where').textContent = 'Table ' + it.t + ' · Hand ' + (it.hl || it.h) + ' · ' + it.time;
     $('sdtag').hidden = !it.sd; $('sdtag').textContent = it.who === 'Board' ? 'Board card' : 'Showdown'; $('sdtag').className = 'tag sd';
     const blind = $('mode').value === 'recheck';
-    const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the ' + (S.rtitle || 'second look').toLowerCase() : (gtxt || '—');
+    const fab = $('mode').value === 'fable';
+    const gtxt = fab ? pretty(S.fable[it.id]) : (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the ' + (S.rtitle || 'second look').toLowerCase() : (gtxt || '—');
     const why = S.recheck[it.id], lab = S.labels[it.id];
     $('why').hidden = !why; if (why) { $('why').innerHTML = ''; const b = document.createElement('b'); b.textContent = 'Why this card is flagged: '; $('why').append(b, document.createTextNode(why)); }
     $('acc').innerHTML = '<kbd>Enter</kbd> accepts it';
-    $('acc').hidden = blind || !guessValue(it.guess);
+    $('acc').hidden = blind || !(fab ? S.fable[it.id] : guessValue(it.guess));
     const v = S.labels[it.id]; const fresh = blind && !((S.labelAt[it.id] || 0) > (S.flagAtId[it.id] || S.flagAt));
-    $('mine').textContent = v !== undefined && !fresh ? 'Your label: ' + pretty(v) : '';
+    $('mine').textContent = v !== undefined && !fresh ? (S.mine[it.id] ? 'Your label: ' : (S.by[it.id] === FAB ? 'Read by Fable: ' : 'Labelled: ')) + pretty(v) : '';
     $('chead').textContent = it.ctx.head || '—'; $('cboard').textContent = it.ctx.board || 'No board (hand ended before the flop)';
     $('cres').textContent = (it.ctx.result || []).join(' · ') || '—';
     draw();
@@ -419,9 +422,9 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     const rows = Object.entries(c).sort((a, b) => b[1] - a[1]); const top = rows.length ? rows[0][1] : 1; const box = $('board'); box.textContent = '';
     rows.forEach(([n, k], i) => {
       const me = n === (S.name || 'you') && Object.keys(S.mine).length;
-      const pseudo = n === 'First page' || n === 'No name';
+      const pseudo = n === 'First page' || n === 'No name' || n === FAB;
       const a = document.createElement('span'); a.textContent = (i + 1) + '. ' + n; a.className = (pseudo ? 'pseudo' : 'nm') + (me ? ' me' : '');
-      if (pseudo) a.title = n === 'First page' ? 'Labels from the first Card Check page, which didn\u2019t record names' : 'Labels saved without a name';
+      if (pseudo) a.title = n === 'First page' ? 'Labels from the first Card Check page, which didn\u2019t record names' : (n === FAB ? 'Cards the AI read itself from enlarged, sharpened frames. Any label you give replaces its read.' : 'Labels saved without a name');
       else { a.title = 'Label as ' + n; a.onclick = () => { S.name = n; $('name').value = n; try { localStorage.setItem('cardcheck-name', n); } catch (e) { } board(); }; }
       const b = document.createElement('span'); b.className = 'bar'; const f = document.createElement('i'); f.style.width = (100 * k / top) + '%'; b.appendChild(f);
       const d = document.createElement('span'); d.textContent = k; if (me) d.className = 'me';
@@ -470,7 +473,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     board();
     const n = S.order.length, done = S.order.filter(it => !isOpen(it)).length;
     $('pbar').style.width = (n ? 100 * done / n : 0) + '%';
-    $('ptext').textContent = n ? done + ' of ' + n + ($('mode').value === 'recheck' ? ' re-checked' : ' labelled') : 'No cards in this view';
+    $('ptext').textContent = n ? done + ' of ' + n + ($('mode').value === 'recheck' ? ' re-checked' : ($('mode').value === 'fable' ? ' checked by a person' : ' labelled')) : 'No cards in this view';
     const box = $('tables'); box.textContent = '';
     const tabs = [...new Set(S.items.map(it => it.t))].sort((a, b) => a - b);
     for (const t of tabs) {
@@ -497,7 +500,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     if (up === 'F') { pickRank('P'); e.preventDefault(); return; }
     if (up === 'X') { cantTell(); e.preventDefault(); return; }
     if (k === 'Enter' && $('mode').value === 'recheck') { e.preventDefault(); return; }
-    if (k === 'Enter') { const g = cur() && guessValue(cur().guess); if (g) save(g); else status('My guess has no rank to accept. Pick the card instead.', 'err'); e.preventDefault(); return; }
+    if (k === 'Enter') { const g = cur() && ($('mode').value === 'fable' ? S.fable[cur().id] : guessValue(cur().guess)); if (g) save(g); else status('My guess has no rank to accept. Pick the card instead.', 'err'); e.preventDefault(); return; }
     if (k === 'Backspace' || k === 'ArrowLeft') { go(-1); e.preventDefault(); return; }
     if (k === 'ArrowRight') { go(1); e.preventDefault(); return; }
     if (k === 'Escape') { S.rank = null; S.suit = null; padState(); }
@@ -555,6 +558,13 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
       const n3 = S.items.filter(it => it.r === 3).length;
       if (n3) { const o = document.createElement('option'); o.value = 'new'; o.textContent = 'New cards: boards and the rest (' + n3 + ')'; $('mode').prepend(o); if ($('mode').value !== 'recheck') $('mode').value = 'new'; }
       try { const baked = await (await fetch('labels.json', { cache: 'no-cache' })).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
+      S.fable = {};
+      try {
+        const fb = await (await fetch('fable.json', { cache: 'no-cache' })).json();
+        for (const [k, v] of Object.entries(fb)) { S.fable[k] = v; if (S.labels[k] === undefined) { S.labels[k] = v; S.by[k] = FAB; } }
+        const nf = S.items.filter(it => S.fable[it.id] !== undefined).length;
+        if (nf) { const o = document.createElement('option'); o.value = 'fable'; o.textContent = 'Spot-check Fable\u2019s reads (' + nf + ')'; const first = $('mode').querySelector('option[value="new"]'); if (first) first.after(o); else $('mode').prepend(o); }
+      } catch (e) { }
       try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; if (sent[k] === v) S.sent[k] = v; else { outbox[k] = v; S.labelAt[k] = Date.now(); } } /* a saved label keeps the time the sheet recorded, so it can't look newer than a later round */ } catch (e) { }
       try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
       S.itemIds = new Set(S.items.map(it => it.id));
