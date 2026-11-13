@@ -550,7 +550,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         if (n) { S.rtitle = rc.title || 'Second look'; const o = document.createElement('option'); o.value = 'recheck'; o.textContent = S.rtitle + ' (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
       } catch (e) { }
       try { const baked = await (await fetch('labels.json', { cache: 'no-cache' })).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
-      try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; S.labelAt[k] = Date.now(); if (sent[k] === v) S.sent[k] = v; else outbox[k] = v; } } catch (e) { }
+      try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; if (sent[k] === v) S.sent[k] = v; else { outbox[k] = v; S.labelAt[k] = Date.now(); } } /* a saved label keeps the time the sheet recorded, so it can't look newer than a later round */ } catch (e) { }
       try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
       S.itemIds = new Set(S.items.map(it => it.id));
       S.byDoc = {}; for (const it of S.items) (S.byDoc[docOf(it)] = S.byDoc[docOf(it)] || []).push(it);
