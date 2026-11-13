@@ -308,6 +308,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     const mode = $('mode').value, tb = $('table').value;
     let list = S.items.filter(it => tb === 'all' || String(it.t) === tb);
     if (mode === 'sd') list = list.filter(it => it.sd);
+    if (mode === 'new') list = list.filter(it => it.r === 3);   /* round 3: cards that were never on the page before */
     if (mode === 'recheck') {
       const order = Object.keys(S.recheck); const pos = new Map(order.map((k, i) => [k, i]));
       list = list.filter(it => pos.has(it.id)).sort((a, b) => pos.get(a.id) - pos.get(b.id));
@@ -320,7 +321,8 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     const idx = new Map(S.items.map((it, i) => [it.id, i]));
     const latest = $('sort').value === 'latest';
     const tier = it => mode === 'sdfirst' ? (it.sd ? 1 : 0) : 0, hkey = it => tier(it) + '|' + it.t + ':' + it.h;
-    list.sort((a, b) => (tier(b) - tier(a)) || (latest ? (b.h - a.h) : (a.h - b.h)) || (a.t - b.t) || (idx.get(a.id) - idx.get(b.id)));
+    const hn = x => x.hl || x.h;
+    list.sort((a, b) => (tier(b) - tier(a)) || (latest ? (hn(b) - hn(a)) : (hn(a) - hn(b))) || (a.t - b.t) || (idx.get(a.id) - idx.get(b.id)));
     if (latest) {
       // Keep latest-first, but take the hands that still have work left in groups of 12 and give each person
       // their own random order inside each group, so people working at the same time rarely land on the same hand.
@@ -395,7 +397,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     }
     $('who').textContent = it.who === 'Board' ? 'Board' : it.who;
     $('slot').textContent = it.slot;
-    $('where').textContent = 'Table ' + it.t + ' · Hand ' + it.h + ' · ' + it.time;
+    $('where').textContent = 'Table ' + it.t + ' · Hand ' + (it.hl || it.h) + ' · ' + it.time;
     $('sdtag').hidden = !it.sd; $('sdtag').textContent = it.who === 'Board' ? 'Board card' : 'Showdown'; $('sdtag').className = 'tag sd';
     const blind = $('mode').value === 'recheck';
     const gtxt = (it.guess || '').replace(/\s*\(\?\)/g, ''); $('guess').textContent = blind ? 'hidden for the ' + (S.rtitle || 'second look').toLowerCase() : (gtxt || '—');
@@ -458,7 +460,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     if (!ids.length) { const e = document.createElement('span'); e.className = 'none'; e.textContent = 'Cards you label appear here; click one to go back to it.'; box.appendChild(e); return; }
     for (const id of ids.slice(0, 300)) {
       const cv = document.createElement('canvas'); cv.width = 48; cv.height = 64; const it = S.items.find(x => x.id === id);
-      cv.title = (it ? it.who + ' ' + it.slot + ' (Table ' + it.t + ', Hand ' + it.h + '): ' : '') + pretty(S.labels[id]);
+      cv.title = (it ? it.who + ' ' + it.slot + ' (Table ' + it.t + ', Hand ' + (it.hl || it.h) + '): ' : '') + pretty(S.labels[id]);
       drawMini(cv, S.labels[id]); cv.onclick = () => jumpTo(id); box.appendChild(cv);
     }
   }
@@ -550,6 +552,8 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
         const n = Object.keys(S.recheck).length;
         if (n) { S.rtitle = rc.title || 'Second look'; const o = document.createElement('option'); o.value = 'recheck'; o.textContent = S.rtitle + ' (' + n + ')'; $('mode').prepend(o); $('mode').value = 'recheck'; }
       } catch (e) { }
+      const n3 = S.items.filter(it => it.r === 3).length;
+      if (n3) { const o = document.createElement('option'); o.value = 'new'; o.textContent = 'New cards: boards and the rest (' + n3 + ')'; $('mode').prepend(o); if ($('mode').value !== 'recheck') $('mode').value = 'new'; }
       try { const baked = await (await fetch('labels.json', { cache: 'no-cache' })).json(); for (const [k, v] of Object.entries(baked)) if (S.labels[k] === undefined) { S.labels[k] = v[0]; if (v[1]) S.labelAt[k] = v[1]; S.by[k] = v[2] || 'First page'; } } catch (e) { }
       try { const kept = JSON.parse(localStorage.getItem('cardcheck-mine') || '{}'); const sent = JSON.parse(localStorage.getItem('cardcheck-sent') || '{}'); for (const [k, v] of Object.entries(kept)) { S.labels[k] = v; S.mine[k] = true; if (sent[k] === v) S.sent[k] = v; else { outbox[k] = v; S.labelAt[k] = Date.now(); } } /* a saved label keeps the time the sheet recorded, so it can't look newer than a later round */ } catch (e) { }
       try { S.name = localStorage.getItem('cardcheck-name') || ''; $('name').value = S.name; } catch (e) { }
