@@ -34,6 +34,8 @@ body { background: var(--bg); color: var(--ink); font-family: var(--f-body); fon
 header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px }
 h1 { font-family: var(--f-head); font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em }
 h1 span { color: var(--felt) }
+h1 a.wk { font-family: var(--f-body); font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 10px; text-decoration: none; border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px; vertical-align: middle }
+h1 a.wk:hover { color: var(--ink); border-color: var(--muted) }
 .prog { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0 }
 .bar { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; min-width: 80px }
 .bar i { display: block; height: 100%; background: var(--felt); width: 0; transition: width .25s }
@@ -122,7 +124,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Week 6 <span>Card Check</span></h1>
+    <h1>Week 6 <span>Card Check</span><a class="wk" href="week7/">Week 7 cards →</a></h1>
     <div class="prog"><div class="bar"><i id="pbar"></i></div><b id="ptext">Loading cards…</b></div>
     <div class="filters">
       <select id="mode" aria-label="Which cards">
@@ -418,7 +420,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
   function board() {
     // Every label scores except a bare "can't tell" (number and suit both unknown). Face cards count, colour or not.
     const scores = v => typeof v === 'string' && v.length >= 2;
-    const c = {}; for (const [id, v] of Object.entries(S.labels)) { if (!scores(v)) continue; const n = S.mine[id] ? (S.name || 'you') : (S.by[id] || 'No name'); c[n] = (c[n] || 0) + 1; }
+    const c = {}; for (const [id, v] of Object.entries(S.labels)) { if (!scores(v) || /^T7\d-/.test(id)) continue;   /* week 7 cards have their own page */ const n = S.mine[id] ? (S.name || 'you') : (S.by[id] || 'No name'); c[n] = (c[n] || 0) + 1; }
     const rows = Object.entries(c).sort((a, b) => b[1] - a[1]); const top = rows.length ? rows[0][1] : 1; const box = $('board'); box.textContent = '';
     rows.forEach(([n, k], i) => {
       const me = n === (S.name || 'you') && Object.keys(S.mine).length;
@@ -432,7 +434,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
     });
     if (!rows.length) box.textContent = 'No labels yet';
     // Explain why the board can add up to more than the "labelled" count at the top.
-    let hid = 0; if (S.itemIds) for (const [id, v] of Object.entries(S.labels)) if (scores(v) && !S.itemIds.has(id)) hid++;
+    let hid = 0; if (S.itemIds) for (const [id, v] of Object.entries(S.labels)) if (scores(v) && !S.itemIds.has(id) && !/^T7\d-/.test(id)) hid++;
     $('boardnote').textContent = (hid ? 'Includes ' + hid + ' labels on the hidden check/fold players’ cards, which aren’t in the count at the top. ' : '') + 'A plain “Can’t tell” doesn’t score.';
     myCards();
   }
