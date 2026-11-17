@@ -357,7 +357,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--f-mono); font-size:
 
   // ---------- drawing ----------
   function img(src) {
-    if (!S.imgs[src]) { const im = new Image(); im.decoding = 'async'; im.onerror = () => { if (!im.dataset.plain) { im.dataset.plain = '1'; im.src = 'img/' + src; } }; im.src = 'img/' + src + '?r=w7a'; im.onload = () => { if (cur() && cur().img === src) draw(); }; S.imgs[src] = im; }
+    if (!S.imgs[src]) { const im = new Image(); im.decoding = 'async'; im.onerror = () => { if (!im.dataset.plain) { im.dataset.plain = '1'; im.src = 'img/' + src; } }; im.src = 'img/' + src + '?r=w7b'; im.onload = () => { if (cur() && cur().img === src) draw(); }; S.imgs[src] = im; }
     return S.imgs[src];
   }
   function fit(canvas, w, h) {
